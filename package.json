@@ -1,0 +1,18 @@
+{
+  "name": "airdrop-sol-tool",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "generate-wallet": "node generateWallet.js",
+    "transfer": "node transferSOL.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@solana/web3.js": "^1.98.2",
+    "dotenv": "^16.5.0"
+  }
+}

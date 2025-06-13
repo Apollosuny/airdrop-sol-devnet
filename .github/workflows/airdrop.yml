@@ -1,0 +1,28 @@
+name: Solana Airdrop
+
+on:
+  schedule:
+    # Runs every 8 hours
+    - cron: '0 */8 * * *'
+  # Also allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  airdrop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run airdrop script
+        run: npm start
+        env:
+          SOLANA_KEYPAIR: ${{ secrets.SOLANA_KEYPAIR }}
+          SOLANA_URL: ${{ secrets.SOLANA_URL || 'https://api.devnet.solana.com' }}
