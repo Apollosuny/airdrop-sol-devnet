@@ -32,27 +32,39 @@ An automated tool to request SOL from Solana devnet every 8 hours. This tool use
    ```
 
 5. Transfer SOL to another wallet:
+
    ```bash
-   npm run transfer <RECIPIENT_ADDRESS> <AMOUNT_SOL>
+   npm run transfer
    ```
+
    or
+
    ```bash
-   node transferSOL.js <RECIPIENT_ADDRESS> <AMOUNT_SOL>
+   node transferSOL.js
    ```
-   Example:
-   ```bash
-   node transferSOL.js 7UX2i7SucgLMQcfZ75s3VXmZZY4YRUyJN9X1RgfMoDUi 1.5
+
+   Note: The transfer functionality automatically sends the maximum amount of SOL available in your wallet minus 1 SOL (integer value only) to the recipient address configured in your `.env` file.
+
+   Make sure to configure your `.env` file with:
+
+   ```
+   RECIPIENT_ADDRESS=<wallet-address-to-receive-sol>
    ```
 
 ### GitHub Actions Setup
 
-To use GitHub Actions for automatic airdrops every 8 hours:
+To use GitHub Actions for automatic operations:
 
 1. Push this code to a GitHub repository
 2. In your GitHub repository, go to Settings > Secrets and Variables > Actions
-3. Add a new repository secret named `SOLANA_KEYPAIR` with the value being the array of your wallet's secret key
-   Example: `[11,22,33,44,...]`
-4. The GitHub Actions workflow will run automatically every 8 hours, or you can trigger it manually from the Actions tab
+3. Add the following repository secrets:
+   - `SOLANA_KEYPAIR`: The array of your wallet's secret key (Example: `[11,22,33,44,...]`)
+   - `RECIPIENT_ADDRESS`: The Solana wallet address to receive transferred SOL
+4. The GitHub Actions workflows will run automatically:
+   - Airdrop workflow: runs every 8 hours to request SOL from devnet
+   - Transfer workflow: runs once daily at 12:00 UTC to transfer SOL to the recipient wallet
+
+Both workflows can also be triggered manually from the Actions tab
 
 ## Important Notes
 
@@ -63,7 +75,15 @@ To use GitHub Actions for automatic airdrops every 8 hours:
 
 ## How It Works
 
+### Airdrop Process
+
 - The tool requests SOL from Solana's devnet faucet
 - When run locally, it makes a single request for 5 SOL
 - When deployed to GitHub Actions, it runs automatically every 8 hours (configured in `.github/workflows/airdrop.yml`)
+
+### Transfer Process
+
 - Airdropped SOL can be transferred to other wallets using the `transferSOL.js` script
+- The transfer script automatically sends the maximum amount of SOL in your wallet minus 1 SOL (integer value only)
+- The transfer script uses the `RECIPIENT_ADDRESS` from your `.env` file
+- When deployed to GitHub Actions, transfers run automatically once per day at 12:00 UTC (configured in `.github/workflows/transfer.yml`)

@@ -1,0 +1,37 @@
+name: SOL Daily Transfer
+
+on:
+  schedule:
+    # Run once daily at 12:00 UTC (middle of the day)
+    - cron: '0 12 * * *'
+  # Allow manual triggers from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  transfer-sol:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up .env file with secrets
+        run: |
+          echo "SOLANA_URL=${{ secrets.SOLANA_URL || 'https://api.devnet.solana.com' }}" > .env
+          echo "SOLANA_KEYPAIR=${{ secrets.SOLANA_KEYPAIR }}" >> .env
+          echo "RECIPIENT_ADDRESS=${{ secrets.RECIPIENT_ADDRESS }}" >> .env
+
+      - name: Run SOL transfer
+        run: node transferSOL.js
+        env:
+          SOLANA_KEYPAIR: ${{ secrets.SOLANA_KEYPAIR }}
+          SOLANA_URL: ${{ secrets.SOLANA_URL || 'https://api.devnet.solana.com' }}
+          RECIPIENT_ADDRESS: ${{ secrets.RECIPIENT_ADDRESS }}

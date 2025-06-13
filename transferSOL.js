@@ -10,21 +10,10 @@ const {
   SystemProgram,
 } = require('@solana/web3.js');
 
-// Get recipient address from command line arguments
-const args = process.argv.slice(2);
-if (args.length < 2) {
-  console.error('Usage: node transferSOL.js <RECIPIENT_ADDRESS> <AMOUNT_SOL>');
-  console.error(
-    'Example: node transferSOL.js 7UX2i7SucgLMQcfZ75s3VXmZZY4YRUyJN9X1RgfMoDUi 1.5'
-  );
-  process.exit(1);
-}
+const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
-const recipientAddress = args[0];
-const amountToSend = parseFloat(args[1]);
-
-if (isNaN(amountToSend) || amountToSend <= 0) {
-  console.error('Error: Amount must be a positive number');
+if (!recipientAddress) {
+  console.error('Error: RECIPIENT_ADDRESS is not defined in .env file');
   process.exit(1);
 }
 
@@ -54,6 +43,21 @@ async function transferSOL() {
     // Check sender balance
     const senderBalance = await connection.getBalance(senderWallet.publicKey);
     const senderBalanceSOL = senderBalance / LAMPORTS_PER_SOL;
+
+    // Calculate amount to send: maximum balance minus 1 SOL, and take only the integer part
+    const reserveAmount = 1; // Keep 1 SOL in the wallet
+    let amountToSend = Math.floor(senderBalanceSOL - reserveAmount);
+
+    // Make sure we're not trying to send a negative amount
+    if (amountToSend <= 0) {
+      console.error(
+        `Insufficient balance. You have ${senderBalanceSOL.toFixed(
+          4
+        )} SOL, need more than ${reserveAmount} SOL to transfer`
+      );
+      process.exit(1);
+    }
+
     const amountInLamports = amountToSend * LAMPORTS_PER_SOL;
 
     console.log(`Sender address: ${senderWallet.publicKey.toBase58()}`);
@@ -62,27 +66,47 @@ async function transferSOL() {
     console.log(
       `Amount to send: ${amountToSend} SOL (${amountInLamports} lamports)`
     );
+    console.log(`Amount to keep: ${reserveAmount} SOL`);
 
-    // Check if sender has enough balance (leaving some for transaction fees)
+    // Check if we need additional fees
     const minimumBalanceForRentExemption =
       await connection.getMinimumBalanceForRentExemption(0);
-    if (senderBalance < amountInLamports + minimumBalanceForRentExemption) {
-      console.error(
-        `Insufficient balance. You need at least ${
-          amountToSend + minimumBalanceForRentExemption / LAMPORTS_PER_SOL
-        } SOL`
+    const transactionFee = minimumBalanceForRentExemption / LAMPORTS_PER_SOL;
+
+    // Make sure we have enough for the transaction fee and the reserve amount
+    if (senderBalanceSOL < amountToSend + transactionFee) {
+      // Adjust amount to send to account for transaction fees
+      amountToSend = Math.floor(
+        senderBalanceSOL - reserveAmount - transactionFee
       );
-      process.exit(1);
+
+      if (amountToSend <= 0) {
+        console.error(
+          `Insufficient balance after accounting for transaction fees. You have ${senderBalanceSOL.toFixed(
+            4
+          )} SOL, need more than ${
+            reserveAmount + transactionFee
+          } SOL to transfer`
+        );
+        process.exit(1);
+      }
+
+      console.log(
+        `Adjusted amount to send (accounting for fees): ${amountToSend} SOL`
+      );
     }
 
     // Create and send transaction
     console.log(`${new Date().toISOString()} - Creating transaction...`);
 
+    // Recalculate lamports based on potentially adjusted amountToSend
+    const finalAmountInLamports = amountToSend * LAMPORTS_PER_SOL;
+
     const transaction = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: senderWallet.publicKey,
         toPubkey: recipientPublicKey,
-        lamports: amountInLamports,
+        lamports: finalAmountInLamports,
       })
     );
 
