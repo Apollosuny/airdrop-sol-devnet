@@ -54,6 +54,17 @@ class SolanaAirdropManager {
 
       return { success: true, signature, balance };
     } catch (error) {
+      // Handle 429 error (Too Many Requests)
+      const is429 =
+        (error && error.code === -32003) ||
+        (error && error.message && error.message.includes('429')) ||
+        (error && error.message && error.message.includes('Too Many Requests'));
+      if (is429) {
+        console.error(
+          `${new Date().toISOString()} - Airdrop stopped: Too Many Requests (429).`
+        );
+        return { success: false, error, is429: true };
+      }
       console.error(`${new Date().toISOString()} - Airdrop failed:`, error);
       return { success: false, error };
     }
@@ -70,6 +81,7 @@ class SolanaAirdropManager {
     console.log(`Initial balance: ${initialBalance / LAMPORTS_PER_SOL} SOL`);
 
     const results = [];
+    let stoppedBy429 = false;
 
     for (let i = 0; i < this.requestsPerExecution; i++) {
       console.log(
@@ -78,6 +90,14 @@ class SolanaAirdropManager {
 
       const result = await this.requestSingleAirdrop();
       results.push(result);
+
+      if (result.is429) {
+        console.error(
+          `Stopping due to 429 Too Many Requests at request ${i + 1}`
+        );
+        stoppedBy429 = true;
+        break;
+      }
 
       if (!result.success) {
         console.error(`Stopping due to failed airdrop request ${i + 1}`);
@@ -98,10 +118,11 @@ class SolanaAirdropManager {
     console.log(`Final balance: ${finalBalance / LAMPORTS_PER_SOL} SOL`);
 
     return {
-      success: results.every((r) => r.success),
+      success: results.every((r) => r.success || r.is429),
       results,
       totalReceived,
       finalBalance: finalBalance / LAMPORTS_PER_SOL,
+      stoppedBy429,
     };
   }
 
@@ -110,9 +131,16 @@ class SolanaAirdropManager {
       const result = await this.requestMultipleAirdrops();
 
       if (result.success) {
-        console.log(
-          `\nScript completed successfully. This script is scheduled via GitHub Actions workflow.`
-        );
+        if (result.stoppedBy429) {
+          console.log(
+            `\nScript stopped early due to 429 Too Many Requests. Exiting gracefully.`
+          );
+          process.exit(0);
+        } else {
+          console.log(
+            `\nScript completed successfully. This script is scheduled via GitHub Actions workflow.`
+          );
+        }
       } else {
         console.error('\nScript completed with errors.');
         process.exit(1);
