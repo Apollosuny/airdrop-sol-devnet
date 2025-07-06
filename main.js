@@ -8,7 +8,7 @@ class SolanaAirdropManager {
     this.connection = null;
     this.wallet = null;
     this.airdropAmount = 5 * LAMPORTS_PER_SOL;
-    this.requestsPerExecution = 2;
+    this.requestsPerExecution = 1;
     this.initializeWallet();
     this.initializeConnection();
   }
